@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Gotopsell — Admin Panel</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+:root{
+  --bg:#0d1117;--sb:#161b22;--card:#21262d;--bdr:#30363d;
+  --green:#238636;--blue:#1f6feb;--red:#da3633;--yellow:#d29922;--purple:#8957e5;--teal:#1abc9c;
+  --text:#c9d1d9;--muted:#8b949e;--white:#f0f6fc;
+}
+body{background:var(--bg);color:var(--text);display:flex;min-height:100vh;overflow-x:hidden}
+
+/* LOGIN */
+#login-wrap{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
+.lbox{background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:44px 38px;width:360px;text-align:center}
+.lbox .ico{font-size:52px;margin-bottom:10px}
+.lbox h2{font-size:22px;color:var(--white);margin-bottom:4px}
+.lbox p{color:var(--muted);font-size:13px;margin-bottom:26px}
+.inp{width:100%;background:#0d1117;border:1px solid var(--bdr);border-radius:9px;color:var(--text);padding:11px 14px;font-size:14px;outline:none;margin-bottom:12px;transition:.2s}
+.inp:focus{border-color:var(--blue)}
+.lbtn{width:100%;background:var(--green);color:#fff;border:none;border-radius:9px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
+.lbtn:hover{background:#2ea043}
+#lerr{color:var(--red);font-size:13px;margin-top:10px;display:none}
+
+/* SIDEBAR */
+#sb{width:240px;background:var(--sb);border-right:1px solid var(--bdr);display:flex;flex-direction:column;position:fixed;height:100vh;overflow-y:auto;z-index:100}
+.sblogo{padding:20px 18px 16px;border-bottom:1px solid var(--bdr)}
+.sblogo h1{font-size:16px;color:var(--white);font-weight:800}
+.sblogo p{font-size:11px;color:var(--muted);margin-top:3px}
+nav a{display:flex;align-items:center;gap:11px;padding:11px 18px;color:var(--muted);text-decoration:none;font-size:13px;cursor:pointer;border-left:3px solid transparent;transition:.15s;user-select:none}
+nav a:hover{color:var(--white);background:rgba(255,255,255,.04)}
+nav a.on{color:var(--white);background:rgba(31,111,235,.1);border-left-color:var(--blue)}
+.ns{font-size:10px;font-weight:700;color:var(--muted);padding:16px 18px 5px;text-transform:uppercase;letter-spacing:.8px}
+.sbfoot{padding:14px 18px;border-top:1px solid var(--bdr);margin-top:auto}
+.sbfoot p{font-size:11px;color:var(--muted)}
+.sbfoot b{color:var(--text);font-size:12px;word-break:break-all}
+.obtn{margin-top:9px;width:100%;background:transparent;border:1px solid var(--bdr);color:var(--muted);border-radius:7px;padding:7px;font-size:12px;cursor:pointer;transition:.15s}
+.obtn:hover{border-color:var(--red);color:var(--red)}
+
+/* BOT ON/OFF MEGA BUTTON */
+.bot-switch-wrap{padding:14px 18px;border-bottom:1px solid var(--bdr)}
+.bot-switch-btn{width:100%;padding:10px;border-radius:9px;border:none;font-size:13px;font-weight:700;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.bot-switch-btn.on{background:rgba(34,197,94,.15);color:#3fb950;border:1px solid rgba(34,197,94,.3)}
+.bot-switch-btn.off{background:rgba(239,68,68,.15);color:#f85149;border:1px solid rgba(239,68,68,.3)}
+
+/* MAIN */
+#main{margin-left:240px;flex:1;padding:28px;min-height:100vh}
+.page{display:none}.page.on{display:block}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.ph h2{font-size:21px;color:var(--white);font-weight:700}
+
+/* STATS */
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;margin-bottom:22px}
+.sc{background:var(--card);border:1px solid var(--bdr);border-radius:11px;padding:18px 16px}
+.sc .sl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:9px}
+.sc .sv{font-size:27px;font-weight:800;color:var(--white)}
+.sc.g .sv{color:#3fb950}.sc.b .sv{color:#58a6ff}.sc.y .sv{color:#e3b341}.sc.r .sv{color:#f85149}.sc.p .sv{color:#bc8cff}.sc.t .sv{color:#1abc9c}
+
+/* CARD */
+.cd{background:var(--card);border:1px solid var(--bdr);border-radius:11px;margin-bottom:18px;overflow:hidden}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bdr)}
+.ch h3{font-size:14px;color:var(--white);font-weight:600}
+.cb{padding:18px}
+
+/* TABLE */
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:500px}
+th{padding:10px 13px;text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--bdr);background:rgba(255,255,255,.02);white-space:nowrap}
+td{padding:11px 13px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+code{background:rgba(110,118,129,.12);border:1px solid var(--bdr);border-radius:4px;padding:1px 6px;font-size:11.5px;color:#e6edf3}
+
+/* BADGE */
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge.pending{background:rgba(210,153,34,.15);color:#e3b341}
+.badge.approved{background:rgba(63,185,80,.15);color:#3fb950}
+.badge.rejected{background:rgba(248,81,73,.15);color:#f85149}
+.badge.banned{background:rgba(248,81,73,.15);color:#f85149}
+.badge.active{background:rgba(63,185,80,.12);color:#3fb950}
+.badge.ig{background:rgba(193,53,132,.15);color:#e1306c}
+.badge.fb{background:rgba(24,119,242,.15);color:#4267b2}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:.15s;white-space:nowrap}
+.bp{background:var(--green);color:#fff}.bp:hover{background:#2ea043}
+.bb{background:var(--blue);color:#fff}.bb:hover{background:#388bfd}
+.br{background:var(--red);color:#fff}.br:hover{background:#f85149}
+.by{background:var(--yellow);color:#000}.by:hover{opacity:.85}
+.bpu{background:var(--purple);color:#fff}.bpu:hover{opacity:.85}
+.bt{background:var(--teal);color:#fff}.bt:hover{opacity:.85}
+.bo{background:transparent;border:1px solid var(--bdr);color:var(--text)}.bo:hover{background:rgba(255,255,255,.05)}
+.bs{padding:4px 9px;font-size:11.5px}
+.bxs{padding:3px 7px;font-size:11px}
+.gap{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* FORM */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+.fi{margin-bottom:14px}
+.fi label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.fi input,.fi select,.fi textarea{width:100%;background:#0d1117;border:1px solid var(--bdr);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;outline:none;resize:vertical;transition:.2s}
+.fi input:focus,.fi select:focus,.fi textarea:focus{border-color:var(--blue)}
+
+/* TOGGLE */
+.tr2{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--bdr)}
+.tr2:last-child{border-bottom:none}
+.ti b{font-size:13px;color:var(--white)}
+.ti p{font-size:11px;color:var(--muted);margin-top:2px}
+.sw{position:relative;width:44px;height:23px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sl2{position:absolute;cursor:pointer;inset:0;background:var(--bdr);border-radius:999px;transition:.25s}
+.sl2:before{position:absolute;content:"";width:17px;height:17px;left:3px;top:3px;background:var(--muted);border-radius:50%;transition:.25s}
+input:checked+.sl2{background:var(--green)}
+input:checked+.sl2:before{transform:translateX(21px);background:#fff}
+
+/* CHANNEL BOX */
+.chbox{background:rgba(137,87,229,.08);border:1px solid rgba(137,87,229,.25);border-radius:11px;padding:18px;margin-bottom:20px}
+.chbox h4{font-size:13px;color:#bc8cff;margin-bottom:13px}
+.ch-row{display:flex;gap:9px;margin-bottom:9px}
+.ch-row input{flex:1;background:#0d1117;border:1px solid var(--bdr);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;outline:none}
+#ch-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chtag{background:rgba(137,87,229,.15);border:1px solid rgba(137,87,229,.3);color:#bc8cff;padding:5px 12px;border-radius:999px;font-size:12px;display:flex;align-items:center;gap:6px}
+.chtag button{background:none;border:none;color:#f85149;cursor:pointer;font-size:15px;line-height:1;padding:0}
+
+/* BKASH BOX */
+.bkbox{background:rgba(220,0,60,.07);border:1px solid rgba(220,0,60,.22);border-radius:11px;padding:18px;margin-bottom:20px}
+.bkbox h4{font-size:13px;color:#ff4d6d;margin-bottom:12px}
+.bkrow{display:flex;gap:9px}
+.bkrow input{flex:1;background:#0d1117;border:1px solid var(--bdr);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;outline:none}
+
+/* BROADCAST BOX */
+.bcbox{background:rgba(31,111,235,.07);border:1px solid rgba(31,111,235,.25);border-radius:11px;padding:20px;margin-bottom:20px}
+.bcbox h4{font-size:14px;color:#58a6ff;margin-bottom:14px;font-weight:600}
+.bc-preview{background:#0d1117;border:1px solid var(--bdr);border-radius:8px;padding:14px;margin:12px 0;font-size:13px;color:var(--text);min-height:60px;white-space:pre-wrap}
+
+/* USER DETAIL MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--bdr);border-radius:14px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bdr)}
+.modal-head h3{font-size:15px;color:var(--white);font-weight:700}
+.modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+.modal-close:hover{color:var(--red)}
+.modal-body{padding:20px}
+.info-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(48,54,61,.4);font-size:13px}
+.info-row:last-child{border-bottom:none}
+.info-row span:first-child{color:var(--muted)}
+.info-row span:last-child{color:var(--white);font-weight:600}
+.msg-area{margin-top:16px}
+.msg-area label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+.msg-area textarea{width:100%;background:#0d1117;border:1px solid var(--bdr);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;outline:none;resize:vertical;min-height:80px}
+.msg-area textarea:focus{border-color:var(--blue)}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+/* AUDIT LOG */
+.audit-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,.4);font-size:12.5px}
+.audit-item:last-child{border-bottom:none}
+.audit-item .atime{color:var(--muted);min-width:120px;flex-shrink:0}
+.audit-item .amsg{color:var(--text)}
+.audit-item .atype{padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:600;margin-right:6px}
+.atype.balance{background:rgba(34,197,94,.12);color:#3fb950}
+.atype.ban{background:rgba(239,68,68,.12);color:#f85149}
+.atype.approve{background:rgba(31,111,235,.12);color:#58a6ff}
+.atype.msg{background:rgba(139,92,246,.12);color:#a78bfa}
+.atype.bot{background:rgba(245,158,11,.12);color:#fbbf24}
+
+/* MISC */
+.empty{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+.toast{position:fixed;bottom:22px;right:22px;background:var(--green);color:#fff;padding:12px 20px;border-radius:9px;font-size:13px;font-weight:600;transform:translateY(70px);transition:.3s;z-index:9999;opacity:0}
+.toast.show{transform:translateY(0);opacity:1}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:4px}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- USER DETAIL MODAL -->
+<div class="modal-bg" id="user-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">👤 User Detail</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-info"></div>
+      <div class="msg-area">
+        <label>📩 Send Direct Message to this user</label>
+        <textarea id="modal-msg" placeholder="Type your message… (Markdown supported)"></textarea>
+      </div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-wrap">
+  <div class="lbox">
+    <div class="ico">🏆</div>
+    <h2>Gotopsell Admin</h2>
+    <p>Sign in to manage your bot</p>
+    <input class="inp" type="email" id="lemail" placeholder="Admin Email"/>
+    <input class="inp" type="password" id="lpass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="lbtn" onclick="doLogin()">Sign In</button>
+    <div id="lerr">❌ Invalid email or password</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sb">
+  <div class="sblogo"><h1>🏆 Gotopsell</h1><p>Admin Panel v3.0</p></div>
+
+  <!-- BOT ON/OFF MEGA BUTTON -->
+  <div class="bot-switch-wrap">
+    <button class="bot-switch-btn on" id="bot-toggle-btn" onclick="toggleBot()">
+      <span id="bot-toggle-icon">🟢</span>
+      <span id="bot-toggle-text">Bot is ONLINE</span>
+    </button>
+  </div>
+
+  <nav>
+    <div class="ns">Overview</div>
+    <a class="on" onclick="go('dashboard',this)">📊 Dashboard</a>
+    <div class="ns">Management</div>
+    <a onclick="go('submissions',this)">📥 Submissions</a>
+    <a onclick="go('withdrawals',this)">💸 Withdrawals</a>
+    <a onclick="go('users',this)">👥 Users</a>
+    <div class="ns">Bot Control</div>
+    <a onclick="go('broadcast',this)">📢 Broadcast</a>
+    <a onclick="go('channels',this)">📡 Channels</a>
+    <a onclick="go('audit',this)">📋 Audit Log</a>
+    <div class="ns">Config</div>
+    <a onclick="go('tasks',this)">📋 Tasks & Rates</a>
+    <a onclick="go('settings',this)">⚙️ Settings</a>
+  </nav>
+  <div class="sbfoot">
+    <p>Logged in as</p>
+    <b id="aemail">—</b>
+    <button class="obtn" onclick="doLogout()">Sign Out</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page on">
+  <div class="ph"><h2>📊 Dashboard</h2><button class="btn bo" onclick="loadDash()">🔄 Refresh</button></div>
+  <div class="sg">
+    <div class="sc b"><div class="sl">Total Users</div><div class="sv" id="d-users">—</div></div>
+    <div class="sc g"><div class="sl">Today Submissions</div><div class="sv" id="d-today">—</div></div>
+    <div class="sc y"><div class="sl">Pending Review</div><div class="sv" id="d-pend">—</div></div>
+    <div class="sc y"><div class="sl">Pending Withdrawals</div><div class="sv" id="d-wd">—</div></div>
+    <div class="sc g"><div class="sl">Balance Owed ($)</div><div class="sv" id="d-bal">—</div></div>
+    <div class="sc p"><div class="sl">Total Approved</div><div class="sv" id="d-app">—</div></div>
+    <div class="sc t"><div class="sl">Total Paid Out ($)</div><div class="sv" id="d-paid">—</div></div>
+    <div class="sc r"><div class="sl">Banned Users</div><div class="sv" id="d-ban">—</div></div>
+  </div>
+  <div class="cd">
+    <div class="ch"><h3>📥 Recent Submissions</h3><button class="btn bp bs" onclick="go('submissions',document.querySelector('nav a:nth-child(5)'))">View All</button></div>
+    <div class="tscroll"><table>
+      <thead><tr><th>#</th><th>User</th><th>Platform</th><th>Task</th><th>Username</th><th>2FA</th><th>Status</th><th>Time</th></tr></thead>
+      <tbody id="d-subs"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- SUBMISSIONS -->
+<div id="page-submissions" class="page">
+  <div class="ph"><h2>📥 Submissions</h2>
+    <div class="gap">
+      <select id="f-platform" onchange="loadSubs()" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:7px 10px;border-radius:7px;font-size:13px">
+        <option value="">All Platforms</option><option value="instagram">📸 Instagram</option><option value="facebook">👍 Facebook</option>
+      </select>
+      <select id="f-task" onchange="loadSubs()" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:7px 10px;border-radius:7px;font-size:13px">
+        <option value="">All Tasks</option><option value="2fa">2FA</option><option value="big_files">Big Files</option>
+      </select>
+      <select id="f-status" onchange="loadSubs()" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:7px 10px;border-radius:7px;font-size:13px">
+        <option value="">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+      </select>
+      <button class="btn bp" onclick="dlXLSX('submissions')">⬇️ XLSX</button>
+      <button class="btn bo" onclick="copyAll()">📋 Copy All</button>
+      <button class="btn by" onclick="approveAllPending()">✅ Approve All</button>
+    </div>
+  </div>
+  <div class="cd"><div class="tscroll"><table>
+    <thead><tr><th>#</th><th>User ID</th><th>Platform</th><th>Task</th><th>Username</th><th>Password</th><th>2FA</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+    <tbody id="s-body"><tr><td colspan="10" class="empty">Loading…</td></tr></tbody>
+  </table></div></div>
+</div>
+
+<!-- WITHDRAWALS -->
+<div id="page-withdrawals" class="page">
+  <div class="ph"><h2>💸 Withdrawals (bKash)</h2><button class="btn bp bs" onclick="dlXLSX('withdrawals')">⬇️ XLSX</button></div>
+  <div class="bkbox">
+    <h4>⚡ Quick Pay — bKash number / @username / user ID</h4>
+    <div class="bkrow">
+      <input id="pk-in" placeholder="01XXXXXXXXX  or  @username  or  user ID"/>
+      <button class="btn bp" onclick="quickPay()">✅ Pay & Approve</button>
+    </div>
+    <div id="pkres" style="font-size:13px;margin-top:10px"></div>
+  </div>
+  <div class="cd"><div class="tscroll"><table>
+    <thead><tr><th>#</th><th>User ID</th><th>Name</th><th>Username</th><th>Amount</th><th>bKash Number</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+    <tbody id="w-body"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
+  </table></div></div>
+</div>
+
+<!-- USERS -->
+<div id="page-users" class="page">
+  <div class="ph"><h2>👥 Users</h2>
+    <div class="gap">
+      <input id="u-search" placeholder="🔍 Search ID, username, name…" oninput="filterUsers()"
+        style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:8px 12px;border-radius:7px;font-size:13px;width:220px"/>
+      <select id="u-filter" onchange="filterUsers()" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:7px 10px;border-radius:7px;font-size:13px">
+        <option value="">All Users</option><option value="active">Active</option><option value="banned">Banned</option>
+      </select>
+      <button class="btn bp bs" onclick="dlXLSX('users')">⬇️ XLSX</button>
+    </div>
+  </div>
+  <div class="cd"><div class="tscroll"><table>
+    <thead><tr><th>ID</th><th>Name</th><th>Username</th><th>Balance</th><th>Tasks</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="u-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+  </table></div></div>
+</div>
+
+<!-- BROADCAST -->
+<div id="page-broadcast" class="page">
+  <div class="ph"><h2>📢 Broadcast</h2></div>
+  <div class="bcbox">
+    <h4>📢 Send message to ALL users</h4>
+    <div class="fi"><label>Message (*bold* _italic_ `code`)</label>
+      <textarea id="bc-msg" rows="6" placeholder="Write your message…" oninput="previewBc()"></textarea></div>
+    <div class="fi"><label>Photo URL (optional)</label>
+      <input type="text" id="bc-photo" placeholder="https://example.com/image.jpg" oninput="previewBc()"/></div>
+    <div class="fi"><label>Preview</label><div class="bc-preview" id="bc-preview">Preview here…</div></div>
+    <div class="fi"><label>Bot Server URL</label><input type="text" id="bc-server" value="http://localhost:8080"/></div>
+    <div class="fi"><label>Broadcast Secret</label><input type="text" id="bc-secret" value="GOTOPSELL_BROADCAST_SECRET"/></div>
+    <button class="btn bb" onclick="sendBroadcast()" style="width:100%;padding:12px;font-size:14px">📢 Send to All Users</button>
+    <div id="bc-result" style="font-size:13px;margin-top:12px;font-weight:600"></div>
+  </div>
+  <div class="cd">
+    <div class="ch"><h3>📋 Broadcast History</h3></div>
+    <div class="tscroll"><table>
+      <thead><tr><th>#</th><th>Message Preview</th><th>Sent ✅</th><th>Failed ❌</th><th>Time</th></tr></thead>
+      <tbody id="bc-hist"><tr><td colspan="5" class="empty">No broadcasts yet</td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- CHANNELS -->
+<div id="page-channels" class="page">
+  <div class="ph"><h2>📡 Required Channels</h2></div>
+  <div class="chbox">
+    <h4>📡 Users MUST join these channels to use the bot</h4>
+    <div class="ch-row">
+      <input type="text" id="ch-input" placeholder="@yourchannel"/>
+      <button class="btn bpu" onclick="addChannel()">➕ Add</button>
+    </div>
+    <div id="ch-list"></div>
+  </div>
+  <div class="cd"><div class="cb">
+    <p style="font-size:13px;color:var(--muted);line-height:1.7">
+      ℹ️ Add Telegram channel username (e.g. <code>@gotopsell</code>).<br>
+      Users see a <b>Join</b> button and cannot access any feature until they join.<br>
+      Make sure the bot is a <b>member</b> of the channel to verify joins.
+    </p>
+  </div></div>
+</div>
+
+<!-- AUDIT LOG -->
+<div id="page-audit" class="page">
+  <div class="ph"><h2>📋 Audit Log</h2>
+    <button class="btn bp bs" onclick="dlXLSX('audit')">⬇️ XLSX</button>
+  </div>
+  <div class="cd"><div class="cb" id="audit-body"><p class="empty">Loading…</p></div></div>
+</div>
+
+<!-- TASKS & RATES -->
+<div id="page-tasks" class="page">
+  <div class="ph"><h2>📋 Tasks & Rates</h2></div>
+  <div class="fg">
+    <div class="cd"><div class="ch"><h3>📸 Instagram 2FA</h3></div><div class="cb">
+      <div class="fi"><label>Rate per task ($)</label><input type="number" id="r-ig2fa" step="0.01" placeholder="2.90"/></div>
+      <button class="btn bp" onclick="saveRate('instagram_2fa_rate','r-ig2fa')">💾 Save</button>
+    </div></div>
+    <div class="cd"><div class="ch"><h3>📸 Instagram Big Files</h3></div><div class="cb">
+      <div class="fi"><label>Rate per account ($)</label><input type="number" id="r-igbig" step="0.01" placeholder="1.50"/></div>
+      <button class="btn bp" onclick="saveRate('instagram_big_rate','r-igbig')">💾 Save</button>
+    </div></div>
+    <div class="cd"><div class="ch"><h3>👍 Facebook 2FA</h3></div><div class="cb">
+      <div class="fi"><label>Rate per task ($)</label><input type="number" id="r-fb2fa" step="0.01" placeholder="2.50"/></div>
+      <button class="btn bp" onclick="saveRate('facebook_2fa_rate','r-fb2fa')">💾 Save</button>
+    </div></div>
+    <div class="cd"><div class="ch"><h3>👍 Facebook Big Files</h3></div><div class="cb">
+      <div class="fi"><label>Rate per account ($)</label><input type="number" id="r-fbbig" step="0.01" placeholder="1.20"/></div>
+      <button class="btn bp" onclick="saveRate('facebook_big_rate','r-fbbig')">💾 Save</button>
+    </div></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="page-settings" class="page">
+  <div class="ph"><h2>⚙️ Settings</h2></div>
+  <div class="fg">
+    <div class="cd"><div class="ch"><h3>🔑 Instagram Daily Password</h3></div><div class="cb">
+      <div class="fi"><label>Password for Instagram account creation</label><input type="text" id="pw-ig" placeholder="Pass@1234"/></div>
+      <button class="btn bp" onclick="saveSetting('daily_password_instagram','pw-ig')">🔄 Update</button>
+    </div></div>
+    <div class="cd"><div class="ch"><h3>🔑 Facebook Daily Password</h3></div><div class="cb">
+      <div class="fi"><label>Password for Facebook account creation</label><input type="text" id="pw-fb" placeholder="Pass@5678"/></div>
+      <button class="btn bp" onclick="saveSetting('daily_password_facebook','pw-fb')">🔄 Update</button>
+    </div></div>
+    <div class="cd"><div class="ch"><h3>💸 Withdrawal</h3></div><div class="cb">
+      <div class="fi"><label>Minimum Withdrawal ($)</label><input type="number" id="min-wd" step="0.5" placeholder="10"/></div>
+      <button class="btn bp" onclick="saveSetting('min_withdraw','min-wd',true)">💾 Save</button>
+    </div></div>
+    <div class="cd"><div class="ch"><h3>🔧 Features</h3></div><div class="cb">
+      <div class="tr2"><div class="ti"><b>👥 Referral System</b><p>Users earn bonus per referral</p></div>
+        <label class="sw"><input type="checkbox" id="t-ref" onchange="toggleS('referral_enabled',this.checked)"><span class="sl2"></span></label></div>
+      <div class="tr2"><div class="ti"><b>🏆 Top Leaderboard</b><p>Show top earners in bot</p></div>
+        <label class="sw"><input type="checkbox" id="t-top" onchange="toggleS('top_enabled',this.checked)"><span class="sl2"></span></label></div>
+    </div></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ════════════════════════════════════════
+// 🔥 FIREBASE CONFIG
+// ════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBM6P2Aslg8lBsWnqe7D2cIQJS8pJzZ6YQ",
+  authDomain: "james-bot-f4dd9.firebaseapp.com",
+  projectId: "james-bot-f4dd9",
+  storageBucket: "james-bot-f4dd9.firebasestorage.app",
+  messagingSenderId: "692354545231",
+  appId: "1:692354545231:web:e32cd413888d3b0ff7dc3a",
+  measurementId: "G-KQL8XLGGLL"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ── Toast ─────────────────────────────────
+function toast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=err?'#da3633':'#238636';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── Audit Log helper ──────────────────────
+async function writeAudit(type, msg){
+  await db.collection('audit_log').add({
+    type, msg,
+    time: new Date().toISOString(),
+    admin: auth.currentUser?.email || 'admin'
+  });
+}
+
+// ── Auth ──────────────────────────────────
+auth.onAuthStateChanged(u=>{
+  if(u){
+    document.getElementById('login-wrap').style.display='none';
+    document.getElementById('aemail').textContent=u.email;
+    loadDash(); loadSettings(); loadChannels(); loadBotStatus();
+  }
+});
+async function doLogin(){
+  document.getElementById('lerr').style.display='none';
+  try{ await auth.signInWithEmailAndPassword(document.getElementById('lemail').value, document.getElementById('lpass').value); }
+  catch(e){ document.getElementById('lerr').style.display='block'; }
+}
+async function doLogout(){ await auth.signOut(); location.reload(); }
+
+// ── Nav ───────────────────────────────────
+function go(name,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('on'));
+  document.getElementById('page-'+name).classList.add('on');
+  if(el) el.classList.add('on');
+  const loaders={dashboard:loadDash,submissions:loadSubs,withdrawals:loadWds,users:loadUsers,broadcast:loadBcHist,channels:loadChannels,audit:loadAudit};
+  if(loaders[name]) loaders[name]();
+}
+
+// ── Settings ──────────────────────────────
+async function getSettings(){
+  const d=await db.collection('settings').doc('global').get();
+  return d.exists ? d.data() : {};
+}
+async function loadSettings(){
+  const s=await getSettings();
+  const sv=(id,v)=>{const e=document.getElementById(id);if(e&&v!==undefined)e.value=v;};
+  const sc=(id,v)=>{const e=document.getElementById(id);if(e)e.checked=!!v;};
+  sv('pw-ig',s.daily_password_instagram); sv('pw-fb',s.daily_password_facebook);
+  sv('min-wd',s.min_withdraw||10);
+  sv('r-ig2fa',s.instagram_2fa_rate||2.90); sv('r-igbig',s.instagram_big_rate||1.50);
+  sv('r-fb2fa',s.facebook_2fa_rate||2.50); sv('r-fbbig',s.facebook_big_rate||1.20);
+  sc('t-ref',s.referral_enabled); sc('t-top',s.top_enabled);
+}
+async function saveSetting(key,id,isNum=false){
+  let v=document.getElementById(id).value;
+  if(isNum)v=parseFloat(v);
+  await db.collection('settings').doc('global').set({[key]:v},{merge:true});
+  await writeAudit('bot','Setting updated: '+key+' = '+v);
+  toast('✅ Saved!');
+}
+async function saveRate(key,id){
+  const v=parseFloat(document.getElementById(id).value);
+  await db.collection('settings').doc('global').set({[key]:v},{merge:true});
+  await writeAudit('bot','Rate updated: '+key+' = $'+v);
+  toast('✅ Rate saved!');
+}
+async function toggleS(key,val){
+  await db.collection('settings').doc('global').set({[key]:val},{merge:true});
+  await writeAudit('bot','Feature toggled: '+key+' = '+val);
+  toast(val?'✅ Enabled':'⛔ Disabled');
+}
+
+// ── BOT ON/OFF ────────────────────────────
+async function loadBotStatus(){
+  const s=await getSettings();
+  updateBotBtn(s.bot_active!==false);
+}
+function updateBotBtn(isActive){
+  const btn=document.getElementById('bot-toggle-btn');
+  const ico=document.getElementById('bot-toggle-icon');
+  const txt=document.getElementById('bot-toggle-text');
+  if(isActive){
+    btn.className='bot-switch-btn on';
+    ico.textContent='🟢'; txt.textContent='Bot is ONLINE';
+  } else {
+    btn.className='bot-switch-btn off';
+    ico.textContent='🔴'; txt.textContent='Bot is OFFLINE';
+  }
+}
+async function toggleBot(){
+  const s=await getSettings();
+  const next=!(s.bot_active!==false);
+  await db.collection('settings').doc('global').set({bot_active:next},{merge:true});
+  await writeAudit('bot', next?'Bot turned ON':'Bot turned OFF');
+  updateBotBtn(next);
+  toast(next?'🟢 Bot is now ONLINE!':'🔴 Bot is now OFFLINE!', !next);
+}
+
+// ── Dashboard ─────────────────────────────
+async function loadDash(){
+  const today=new Date().toISOString().split('T')[0];
+  const [uS,sS,wS]=await Promise.all([
+    db.collection('users').get(),
+    db.collection('submissions').orderBy('submitted_at','desc').get(),
+    db.collection('withdrawals').get(),
+  ]);
+  const bal=uS.docs.reduce((a,d)=>a+(d.data().balance||0),0);
+  const paid=wS.docs.filter(d=>d.data().status==='approved').reduce((a,d)=>a+(d.data().amount||0),0);
+  const banned=uS.docs.filter(d=>d.data().banned).length;
+  document.getElementById('d-users').textContent=uS.size;
+  document.getElementById('d-today').textContent=sS.docs.filter(d=>d.data().date===today).length;
+  document.getElementById('d-pend').textContent=sS.docs.filter(d=>d.data().status==='pending').length;
+  document.getElementById('d-wd').textContent=wS.docs.filter(d=>d.data().status==='pending').length;
+  document.getElementById('d-bal').textContent='$'+bal.toFixed(2);
+  document.getElementById('d-app').textContent=sS.docs.filter(d=>d.data().status==='approved').length;
+  document.getElementById('d-paid').textContent='$'+paid.toFixed(2);
+  document.getElementById('d-ban').textContent=banned;
+  const tbody=document.getElementById('d-subs');
+  const rec=sS.docs.slice(0,10);
+  if(!rec.length){tbody.innerHTML='<tr><td colspan="8" class="empty">No submissions yet</td></tr>';return;}
+  tbody.innerHTML=rec.map((d,i)=>{const s=d.data();return`<tr>
+    <td>${i+1}</td><td><code>${s.user_id}</code></td>
+    <td><span class="badge ${s.platform}">${s.platform==='instagram'?'📸 IG':'👍 FB'}</span></td>
+    <td>${s.task_type}</td><td><code>${s.username_acc}</code></td>
+    <td><code>${s.twofa||'—'}</code></td>
+    <td><span class="badge ${s.status}">${s.status}</span></td>
+    <td>${(s.submitted_at||'').slice(0,16)}</td></tr>`;}).join('');
+}
+
+// ── Submissions ───────────────────────────
+let allSubs=[];
+async function loadSubs(){
+  const fp=document.getElementById('f-platform').value;
+  const ft=document.getElementById('f-task').value;
+  const fs=document.getElementById('f-status').value;
+  const snap=await db.collection('submissions').orderBy('submitted_at','desc').get();
+  allSubs=snap.docs.map(d=>({id:d.id,...d.data()}));
+  let list=allSubs;
+  if(fp) list=list.filter(s=>s.platform===fp);
+  if(ft) list=list.filter(s=>s.task_type===ft);
+  if(fs) list=list.filter(s=>s.status===fs);
+  const tbody=document.getElementById('s-body');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="10" class="empty">No submissions</td></tr>';return;}
+  tbody.innerHTML=list.map((s,i)=>`<tr>
+    <td>${i+1}</td><td><code>${s.user_id}</code></td>
+    <td><span class="badge ${s.platform}">${s.platform==='instagram'?'📸 IG':'👍 FB'}</span></td>
+    <td>${s.task_type}</td>
+    <td><code>${s.username_acc}</code></td><td><code>${s.password}</code></td>
+    <td><code>${s.twofa||'—'}</code></td>
+    <td><span class="badge ${s.status}">${s.status}</span></td>
+    <td>${(s.submitted_at||'').slice(0,10)}</td>
+    <td style="display:flex;gap:4px">${s.status==='pending'?`
+      <button class="btn bp bxs" onclick="appSub('${s.id}','${s.user_id}','${s.platform}','${s.task_type}')">✅</button>
+      <button class="btn br bxs" onclick="rejSub('${s.id}','${s.user_id}')">❌</button>`:'—'}
+    </td></tr>`).join('');
+}
+
+// SAFE approval: uses Firestore transaction to prevent double-credit
+async function appSub(id, uid, platform, taskType){
+  const s=await getSettings();
+  const rk={instagram_2fa:'instagram_2fa_rate',instagram_big_files:'instagram_big_rate',
+    facebook_2fa:'facebook_2fa_rate',facebook_big_files:'facebook_big_rate'}[`${platform}_${taskType}`]||'instagram_2fa_rate';
+  const rate=parseFloat(s[rk])||2.90;
+  const subRef=db.collection('submissions').doc(id);
+  const userRef=db.collection('users').doc(String(uid));
+  try{
+    await db.runTransaction(async tx=>{
+      const subDoc=await tx.get(subRef);
+      if(!subDoc.exists) throw new Error('Submission not found');
+      if(subDoc.data().status!=='pending') throw new Error('Already processed');
+      const userDoc=await tx.get(userRef);
+      const curBal=userDoc.exists?(userDoc.data().balance||0):0;
+      const curTasks=userDoc.exists?(userDoc.data().tasks_done||0):0;
+      tx.update(subRef,{status:'approved', approved_at:new Date().toISOString(), approved_rate:rate});
+      if(userDoc.exists){
+        tx.update(userRef,{balance:curBal+rate, tasks_done:curTasks+1});
+      }
+    });
+    await writeAudit('approve',`Approved sub ${id} for user ${uid} | +$${rate.toFixed(2)}`);
+    toast('✅ Approved! +$'+rate.toFixed(2)); loadSubs(); loadDash();
+  }catch(e){toast('❌ '+e.message,true);}
+}
+
+async function rejSub(id,uid){
+  const subRef=db.collection('submissions').doc(id);
+  await db.runTransaction(async tx=>{
+    const doc=await tx.get(subRef);
+    if(doc.data().status!=='pending') throw new Error('Already processed');
+    tx.update(subRef,{status:'rejected',rejected_at:new Date().toISOString()});
+  });
+  await writeAudit('approve',`Rejected sub ${id} for user ${uid}`);
+  toast('❌ Rejected'); loadSubs();
+}
+
+async function approveAllPending(){
+  if(!confirm('Approve ALL pending submissions? This cannot be undone.')) return;
+  const snap=await db.collection('submissions').where('status','==','pending').get();
+  const s=await getSettings();
+  let cnt=0,errs=0;
+  for(const doc of snap.docs){
+    const d=doc.data();
+    const rk={instagram_2fa:'instagram_2fa_rate',instagram_big_files:'instagram_big_rate',
+      facebook_2fa:'facebook_2fa_rate',facebook_big_files:'facebook_big_rate'}[`${d.platform}_${d.task_type}`]||'instagram_2fa_rate';
+    const rate=parseFloat(s[rk])||2.90;
+    try{
+      await db.runTransaction(async tx=>{
+        const sd=await tx.get(doc.ref);
+        if(sd.data().status!=='pending') return;
+        const uRef=db.collection('users').doc(String(d.user_id));
+        const ud=await tx.get(uRef);
+        tx.update(doc.ref,{status:'approved',approved_at:new Date().toISOString(),approved_rate:rate});
+        if(ud.exists) tx.update(uRef,{balance:(ud.data().balance||0)+rate,tasks_done:(ud.data().tasks_done||0)+1});
+      });
+      cnt++;
+    }catch(e){errs++;}
+  }
+  await writeAudit('approve',`Bulk approved ${cnt} submissions`);
+  toast(`✅ Approved ${cnt}${errs?' | ❌ Errors: '+errs:''}`);
+  loadSubs(); loadDash();
+}
+
+// ── XLSX Downloads ────────────────────────
+async function dlXLSX(type){
+  const today=new Date().toISOString().split('T')[0];
+  let rows=[], headers=[], snap;
+  if(type==='submissions'){
+    if(!allSubs.length){ snap=await db.collection('submissions').orderBy('submitted_at','desc').get(); allSubs=snap.docs.map(d=>({id:d.id,...d.data()})); }
+    headers=['#','User ID','Platform','Task','IG/FB Username','Password','2FA','Status','Date'];
+    rows=allSubs.map((s,i)=>[i+1,s.user_id,s.platform,s.task_type,s.username_acc,s.password,s.twofa||'',s.status,(s.submitted_at||'').slice(0,10)]);
+  } else if(type==='withdrawals'){
+    snap=await db.collection('withdrawals').orderBy('requested_at','desc').get();
+    const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+    headers=['#','User ID','Name','Username','Amount ($)','bKash Number','Status','Date'];
+    rows=list.map((w,i)=>[i+1,w.user_id,w.full_name||'',w.username?'@'+w.username:'',w.amount||0,w.bkash_number||'',w.status,(w.requested_at||'').slice(0,10)]);
+  } else if(type==='users'){
+    snap=await db.collection('users').orderBy('joined','desc').get();
+    const list=snap.docs.map(d=>d.data());
+    headers=['ID','Name','Username','Balance ($)','Tasks Done','Joined','Status'];
+    rows=list.map(u=>[u.id,u.full_name||'',u.username?'@'+u.username:'',u.balance||0,u.tasks_done||0,(u.joined||'').slice(0,10),u.banned?'Banned':'Active']);
+  } else if(type==='audit'){
+    snap=await db.collection('audit_log').orderBy('time','desc').get();
+    const list=snap.docs.map(d=>d.data());
+    headers=['Type','Message','Admin','Time'];
+    rows=list.map(a=>[a.type,a.msg,a.admin,(a.time||'').slice(0,16)]);
+  }
+  if(!rows.length){toast('No data to export',true);return;}
+  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+  const colWidths=headers.map((_,ci)=>({wch:Math.max(...[headers[ci],...rows.map(r=>String(r[ci]||''))].map(v=>v.length))+2}));
+  ws['!cols']=colWidths;
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,today);
+  XLSX.writeFile(wb,`gotopsell_${type}_${today}.xlsx`);
+  toast('⬇️ Downloaded!');
+}
+
+function copyAll(){
+  if(!allSubs.length){toast('No data',true);return;}
+  navigator.clipboard.writeText(allSubs.map(s=>`${s.username_acc}\t${s.password}\t${s.twofa||''}`).join('\n'));
+  toast('📋 Copied '+allSubs.length+' records (Tab-separated for Google Sheets)!');
+}
+
+// ── Withdrawals ───────────────────────────
+async function loadWds(){
+  const snap=await db.collection('withdrawals').orderBy('requested_at','desc').get();
+  const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const tbody=document.getElementById('w-body');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" class="empty">No withdrawal requests</td></tr>';return;}
+  tbody.innerHTML=list.map((w,i)=>`<tr>
+    <td>${i+1}</td><td><code>${w.user_id}</code></td>
+    <td>${w.full_name||'—'}</td><td>${w.username?'@'+w.username:'—'}</td>
+    <td><b>$${(w.amount||0).toFixed(2)}</b></td>
+    <td>💳 <code>${w.bkash_number||'—'}</code></td>
+    <td><span class="badge ${w.status}">${w.status}</span></td>
+    <td>${(w.requested_at||'').slice(0,10)}</td>
+    <td style="display:flex;gap:4px">${w.status==='pending'?`
+      <button class="btn bp bxs" onclick="appWd('${w.id}','${w.user_id}',${w.amount||0})">✅ Pay</button>
+      <button class="btn br bxs" onclick="rejWd('${w.id}')">❌</button>`:'—'}
+    </td></tr>`).join('');
+}
+
+async function appWd(id,uid,amount){
+  const wdRef=db.collection('withdrawals').doc(id);
+  const userRef=db.collection('users').doc(String(uid));
+  try{
+    await db.runTransaction(async tx=>{
+      const wd=await tx.get(wdRef);
+      if(wd.data().status!=='pending') throw new Error('Already processed');
+      const ud=await tx.get(userRef);
+      const curBal=ud.exists?(ud.data().balance||0):0;
+      tx.update(wdRef,{status:'approved',paid_at:new Date().toISOString()});
+      if(ud.exists) tx.update(userRef,{balance:Math.max(0,curBal-amount)});
+    });
+    await writeAudit('balance',`Withdrawal approved: user ${uid} | -$${parseFloat(amount).toFixed(2)}`);
+    toast('✅ bKash payment approved!'); loadWds(); loadDash();
+  }catch(e){toast('❌ '+e.message,true);}
+}
+async function rejWd(id){
+  await db.collection('withdrawals').doc(id).update({status:'rejected',rejected_at:new Date().toISOString()});
+  await writeAudit('balance',`Withdrawal rejected: ${id}`);
+  toast('❌ Rejected'); loadWds();
+}
+async function quickPay(){
+  const input=document.getElementById('pk-in').value.trim().replace('@','');
+  const res=document.getElementById('pkres');
+  if(!input)return;
+  let snap=await db.collection('withdrawals').where('status','==','pending').where('bkash_number','==',input).get();
+  if(snap.empty) snap=await db.collection('withdrawals').where('status','==','pending').where('username','==',input).get();
+  if(snap.empty){const uid=parseInt(input);if(!isNaN(uid)) snap=await db.collection('withdrawals').where('status','==','pending').where('user_id','==',uid).get();}
+  if(snap.empty){res.style.color='#f85149';res.textContent='❌ No pending withdrawal for: '+input;return;}
+  for(const doc of snap.docs) await appWd(doc.id,doc.data().user_id,doc.data().amount||0);
+  res.style.color='#3fb950';res.textContent='✅ Approved '+snap.size+' payment(s)';
+  document.getElementById('pk-in').value='';
+}
+
+// ── Users + Modal ─────────────────────────
+let allUsers=[], modalUserId=null;
+async function loadUsers(){
+  const snap=await db.collection('users').orderBy('joined','desc').get();
+  allUsers=snap.docs.map(d=>({id:d.id,...d.data()}));
+  filterUsers();
+}
+function filterUsers(){
+  const q=document.getElementById('u-search').value.toLowerCase();
+  const f=document.getElementById('u-filter').value;
+  let list=allUsers;
+  if(q) list=list.filter(u=>String(u.id).includes(q)||(u.username||'').toLowerCase().includes(q)||(u.full_name||'').toLowerCase().includes(q));
+  if(f==='active') list=list.filter(u=>!u.banned);
+  if(f==='banned') list=list.filter(u=>u.banned);
+  const tbody=document.getElementById('u-body');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="empty">No users</td></tr>';return;}
+  tbody.innerHTML=list.map(u=>`<tr>
+    <td><code>${u.id}</code></td>
+    <td>${u.full_name||'—'}</td>
+    <td>${u.username?'@'+u.username:'N/A'}</td>
+    <td><b>$${(u.balance||0).toFixed(2)}</b></td>
+    <td>${u.tasks_done||0}</td>
+    <td>${(u.joined||'').slice(0,10)}</td>
+    <td><span class="badge ${u.banned?'banned':'active'}">${u.banned?'Banned':'Active'}</span></td>
+    <td><button class="btn bt bxs" onclick="openUserModal('${u.id}')">🔍 Manage</button></td>
+  </tr>`).join('');
+}
+
+function openUserModal(uid){
+  const u=allUsers.find(x=>String(x.id)===String(uid));
+  if(!u) return;
+  modalUserId=String(uid);
+  document.getElementById('modal-title').textContent='👤 '+( u.full_name||'User')+' ('+u.id+')';
+  document.getElementById('modal-info').innerHTML=`
+    <div class="info-row"><span>🆔 Telegram ID</span><span><code>${u.id}</code></span></div>
+    <div class="info-row"><span>👤 Full Name</span><span>${u.full_name||'—'}</span></div>
+    <div class="info-row"><span>📛 Username</span><span>${u.username?'@'+u.username:'—'}</span></div>
+    <div class="info-row"><span>💰 Balance</span><span style="color:#3fb950"><b>$${(u.balance||0).toFixed(2)}</b></span></div>
+    <div class="info-row"><span>✅ Tasks Done</span><span>${u.tasks_done||0}</span></div>
+    <div class="info-row"><span>📅 Joined</span><span>${(u.joined||'').slice(0,10)}</span></div>
+    <div class="info-row"><span>🌐 Language</span><span>${(u.language||'en').toUpperCase()}</span></div>
+    <div class="info-row"><span>⚡ Status</span><span><span class="badge ${u.banned?'banned':'active'}">${u.banned?'Banned':'Active'}</span></span></div>
+  `;
+  document.getElementById('modal-msg').value='';
+  document.getElementById('modal-actions').innerHTML=`
+    <button class="btn bp" onclick="modalAddBal()">➕ Add Balance</button>
+    <button class="btn br" onclick="modalRedBal()">➖ Reduce Balance</button>
+    <button class="btn bo" onclick="modalBan(${!!u.banned})">${u.banned?'🔓 Unban':'🚫 Ban'}</button>
+    <button class="btn bb" onclick="modalSendMsg()">📩 Send Message</button>
+  `;
+  document.getElementById('user-modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('user-modal').classList.remove('open'); modalUserId=null; }
+
+async function modalAddBal(){
+  const a=parseFloat(prompt('Add balance amount ($):'));
+  if(!a||isNaN(a)||a<=0){toast('Invalid amount',true);return;}
+  const ref=db.collection('users').doc(modalUserId);
+  await db.runTransaction(async tx=>{
+    const doc=await tx.get(ref);
+    if(!doc.exists) throw new Error('User not found');
+    tx.update(ref,{balance:(doc.data().balance||0)+a});
+  });
+  await writeAudit('balance',`Added $${a.toFixed(2)} to user ${modalUserId}`);
+  toast('✅ +$'+a.toFixed(2)+' added');
+  closeModal(); loadUsers(); loadDash();
+}
+async function modalRedBal(){
+  const a=parseFloat(prompt('Reduce balance ($):'));
+  if(!a||isNaN(a)||a<=0){toast('Invalid amount',true);return;}
+  const ref=db.collection('users').doc(modalUserId);
+  await db.runTransaction(async tx=>{
+    const doc=await tx.get(ref);
+    if(!doc.exists) throw new Error('User not found');
+    const cur=doc.data().balance||0;
+    if(a>cur) throw new Error('Cannot reduce below 0');
+    tx.update(ref,{balance:Math.max(0,cur-a)});
+  });
+  await writeAudit('balance',`Reduced $${a.toFixed(2)} from user ${modalUserId}`);
+  toast('✅ -$'+a.toFixed(2));
+  closeModal(); loadUsers(); loadDash();
+}
+async function modalBan(isBanned){
+  const ref=db.collection('users').doc(modalUserId);
+  await ref.update({banned:!isBanned});
+  await writeAudit('ban',(isBanned?'Unbanned':'Banned')+' user '+modalUserId);
+  toast(isBanned?'🔓 Unbanned':'🚫 Banned');
+  closeModal(); loadUsers();
+}
+async function modalSendMsg(){
+  const msg=document.getElementById('modal-msg').value.trim();
+  if(!msg){toast('Message is empty',true);return;}
+  const s=await getSettings();
+  const server=(document.getElementById('bc-server')||{value:'http://localhost:8080'}).value||'http://localhost:8080';
+  const secret=(document.getElementById('bc-secret')||{value:'GOTOPSELL_BROADCAST_SECRET'}).value||'GOTOPSELL_BROADCAST_SECRET';
+  try{
+    await fetch(server+'/send_message',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({secret,user_id:parseInt(modalUserId),message:msg})
+    });
+    await writeAudit('msg','DM sent to user '+modalUserId+': '+msg.slice(0,40));
+    toast('📩 Message sent!'); closeModal();
+  }catch(e){
+    // Fallback: save to firestore queue for bot to pick up
+    await db.collection('dm_queue').add({user_id:parseInt(modalUserId),message:msg,sent:false,created_at:new Date().toISOString()});
+    await writeAudit('msg','DM queued for user '+modalUserId);
+    toast('📩 Message queued — bot will deliver it!'); closeModal();
+  }
+}
+
+// ── Broadcast ─────────────────────────────
+function previewBc(){
+  const msg=document.getElementById('bc-msg').value;
+  document.getElementById('bc-preview').textContent=msg||'Preview here…';
+}
+async function sendBroadcast(){
+  const msg=document.getElementById('bc-msg').value.trim();
+  const photo=document.getElementById('bc-photo').value.trim();
+  const server=document.getElementById('bc-server').value.trim();
+  const secret=document.getElementById('bc-secret').value.trim();
+  const res=document.getElementById('bc-result');
+  if(!msg){toast('Message cannot be empty',true);return;}
+  res.style.color='#e3b341'; res.textContent='📡 Sending…';
+  try{
+    const r=await fetch(server+'/broadcast',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({secret,message:msg,photo})
+    });
+    const data=await r.json();
+    res.style.color='#3fb950';
+    res.textContent=`✅ Sent: ${data.sent} | ❌ Failed: ${data.failed}`;
+    await db.collection('broadcast_history').add({message:msg,photo:photo||'',sent:data.sent,failed:data.failed,sent_at:new Date().toISOString()});
+    await writeAudit('bot',`Broadcast sent to ${data.sent} users`);
+    toast('📢 Broadcast done!'); loadBcHist();
+  }catch(e){
+    res.style.color='#f85149';
+    res.textContent='❌ Bot server offline. Make sure gotopsell_bot.py is running!';
+  }
+}
+async function loadBcHist(){
+  const snap=await db.collection('broadcast_history').orderBy('sent_at','desc').limit(20).get();
+  const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const tbody=document.getElementById('bc-hist');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty">No broadcasts yet</td></tr>';return;}
+  tbody.innerHTML=list.map((b,i)=>`<tr>
+    <td>${i+1}</td>
+    <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.message.slice(0,60)}${b.message.length>60?'…':''}</td>
+    <td style="color:#3fb950"><b>${b.sent}</b></td>
+    <td style="color:#f85149"><b>${b.failed}</b></td>
+    <td>${(b.sent_at||'').slice(0,16)}</td></tr>`).join('');
+}
+
+// ── Channels ──────────────────────────────
+async function loadChannels(){
+  const s=await getSettings();
+  renderChannels(s.required_channels||[]);
+}
+function renderChannels(channels){
+  const div=document.getElementById('ch-list');
+  if(!channels.length){div.innerHTML='<span style="color:var(--muted);font-size:13px">No channels yet.</span>';return;}
+  div.innerHTML=channels.map(ch=>`<span class="chtag">📢 ${ch}<button onclick="removeChannel('${ch}')">×</button></span>`).join('');
+}
+async function addChannel(){
+  let ch=document.getElementById('ch-input').value.trim();
+  if(!ch) return;
+  if(!ch.startsWith('@')) ch='@'+ch;
+  const s=await getSettings();
+  const channels=[...(s.required_channels||[])];
+  if(channels.includes(ch)){toast('Already added',true);return;}
+  channels.push(ch);
+  await db.collection('settings').doc('global').set({required_channels:channels},{merge:true});
+  await writeAudit('bot','Channel added: '+ch);
+  document.getElementById('ch-input').value='';
+  renderChannels(channels); toast('✅ Added: '+ch);
+}
+async function removeChannel(ch){
+  const s=await getSettings();
+  const channels=(s.required_channels||[]).filter(c=>c!==ch);
+  await db.collection('settings').doc('global').set({required_channels:channels},{merge:true});
+  await writeAudit('bot','Channel removed: '+ch);
+  renderChannels(channels); toast('🗑️ Removed: '+ch);
+}
+
+// ── Audit Log ─────────────────────────────
+async function loadAudit(){
+  const snap=await db.collection('audit_log').orderBy('time','desc').limit(100).get();
+  const list=snap.docs.map(d=>d.data());
+  const body=document.getElementById('audit-body');
+  if(!list.length){body.innerHTML='<p class="empty">No audit logs yet</p>';return;}
+  body.innerHTML=list.map(a=>`
+    <div class="audit-item">
+      <span class="atime">${(a.time||'').slice(0,16)}</span>
+      <span><span class="atype ${a.type}">${a.type}</span>${a.msg}</span>
+    </div>`).join('');
+}
+
+// Close modal on background click
+document.getElementById('user-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+</script>
+</body>
+</html>
