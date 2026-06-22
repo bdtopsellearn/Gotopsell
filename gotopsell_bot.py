@@ -27,7 +27,7 @@ import json, threading
 # ══════════════════════════════════════════════
 #  CONFIG
 # ══════════════════════════════════════════════
-BOT_TOKEN  = "8762952401:AAEh_eO9uYgWaBfy0xtTrp_Li4hJ14rf49c"
+BOT_TOKEN  = "8717685183:AAGgDvrj4q9vG3h8WxWAIwHDlEbuNQt2GYU"
 ADMIN_IDS  = [7831629041]
 FIREBASE_CREDENTIALS_PATH = "firebase_credentials.json"
 BROADCAST_PORT = 8080   # local port for admin panel broadcast webhook
